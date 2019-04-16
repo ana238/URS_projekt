@@ -6,14 +6,12 @@ import keyboard
 import subprocess
 import os
 
+
 #Global Variables
 ser = 0
-def insert_data(ime, prezime,jmabg):
+def insert_data(connection,ime, prezime,jmabg):
     try:
-        proc = subprocess.Popen('heroku config:get DATABASE_URL -a intense-ravine-30063', stdout=subprocess.PIPE, shell=True)
-        db_url = proc.stdout.read().decode('utf-8').strip() + '?sslmode=require'
 
-        connection = psycopg2.connect(db_url)
 
         cursor = connection.cursor()
 
@@ -30,14 +28,10 @@ def insert_data(ime, prezime,jmabg):
     finally:
         if(connection):
             cursor.close()
-            connection.close()
 
-def select_data(jmbag):
+def select_data(connection, jmbag):
     try:
-       proc = subprocess.Popen('heroku config:get DATABASE_URL -a intense-ravine-30063', stdout=subprocess.PIPE, shell=True)
-       db_url = proc.stdout.read().decode('utf-8').strip() + '?sslmode=require'
 
-       connection = psycopg2.connect(db_url)
 
        cursor = connection.cursor()
 
@@ -56,7 +50,6 @@ def select_data(jmbag):
         #closing database connection.
         if(connection):
             cursor.close()
-            connection.close()
 
 
 #Function to Initialize the Serial Port
@@ -67,24 +60,33 @@ def init_serial():
 
 
 def main():
+    proc = subprocess.Popen('heroku config:get DATABASE_URL -a intense-ravine-30063', stdout=subprocess.PIPE, shell=True)
+    db_url = proc.stdout.read().decode('utf-8').strip() + '?sslmode=require'
+
+    connection = psycopg2.connect(db_url)
     #Call the Serial Initilization Function, Main Program Starts from here
     init_serial()
     while 1:
+        if connection:
+            print('povezano')
+            bytes = ser.readline().decode('utf-8')  #Read from Serial Port
 
-        bytes = ser.readline().decode('utf-8')  #Read from Serial Port
+            if(len(bytes) == 84):
+                byte = re.split('\W+', bytes)
+                prezime = byte[2]
+                ime = byte[3]
+                oib = byte[4]
+                jmbag = byte[5]
+                print("Accepted")
+                if select_data(connection,jmbag) == 0:
+                    insert_data(connection, ime, prezime, jmbag)
+                else:
+                    print('Neces opet')
 
-        if(len(bytes) == 84):
-            byte = re.split('\W+', bytes)
-            prezime = byte[2]
-            ime = byte[3]
-            oib = byte[4]
-            jmbag = byte[5]
-            print("Accepted")
-            if select_data(jmbag) == 0:
-                insert_data(ime, prezime, jmbag)
 
-        else:
-            print("Denied")
+            else:
+                print("Denied")
+
 
 
 if __name__ == "__main__":
